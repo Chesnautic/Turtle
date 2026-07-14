@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Turtle</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <div id="stageWrap">
+      <canvas id="stage" width="240" height="240"></canvas>
+      <div id="dropHint">drop a sound on me</div>
+      <div id="dropOverlay"></div>
+    </div>
+
+    <div id="panel">
+      <div class="panelHeader">
+        <span class="title">TURTLE</span>
+        <button id="panelToggle" title="Show / hide sequencer">▾</button>
+      </div>
+
+      <div id="panelBody">
+        <div id="steps"></div>
+
+        <div class="controlsRow">
+          <button id="playBtn" class="iconBtn" title="Play / stop">▶</button>
+          <button id="shuffleBtn" class="iconBtn" title="Re-shuffle pattern">⟲</button>
+          <div class="tempoWrap">
+            <span id="bpmLabel">120 BPM</span>
+            <input id="tempo" type="range" min="60" max="180" value="120" />
+          </div>
+        </div>
+
+        <div id="status">no sample loaded yet</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
