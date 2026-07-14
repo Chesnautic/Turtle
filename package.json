@@ -1,8 +1,8 @@
 {
   "name": "turtle",
   "productName": "Turtle",
-  "version": "1.0.0",
-  "description": "A desktop pet turtle that eats your audio samples and chops them into a beat.",
+  "version": "1.1.0",
+  "description": "A desktop pet turtle that eats your audio samples, chops them into a beat, and exports the mix.",
   "main": "main.js",
   "author": "You",
   "license": "MIT",

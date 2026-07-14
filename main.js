@@ -1,10 +1,11 @@
-const { app, BrowserWindow, ipcMain, Menu, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, screen, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 let mainWindow = null;
 
-const WINDOW_WIDTH = 240;
-const WINDOW_HEIGHT = 420;
+const WINDOW_WIDTH = 264;
+const WINDOW_HEIGHT = 480;
 
 function createWindow() {
   const { width: screenWidth, height: screenHeight } =
@@ -71,6 +72,30 @@ ipcMain.on('show-context-menu', (event) => {
   ];
   const menu = Menu.buildFromTemplate(template);
   menu.popup({ window: mainWindow });
+});
+
+// Export: renderer sends a rendered WAV as raw bytes, main shows a native
+// "Save As" dialog and writes the file — keeps filesystem access out of the
+// sandboxed renderer entirely.
+ipcMain.handle('save-wav', async (event, { buffer, suggestedName }) => {
+  if (!mainWindow) return { success: false };
+
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+    title: 'Export Turtle mix',
+    defaultPath: suggestedName,
+    filters: [{ name: 'WAV Audio', extensions: ['wav'] }],
+  });
+
+  if (canceled || !filePath) {
+    return { success: false, canceled: true };
+  }
+
+  try {
+    fs.writeFileSync(filePath, Buffer.from(buffer));
+    return { success: true, filePath };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
 });
 
 app.whenReady().then(createWindow);

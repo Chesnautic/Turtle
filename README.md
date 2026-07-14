@@ -1,26 +1,36 @@
 # Turtle 🐢
 
-A tiny desktop pet that lives on top of your other windows. Drag an audio
-file onto him and he eats it, chops it into 16 slices, and auto-arranges
-them into a looping beat you can remix on a mini step sequencer.
+A tiny desktop pet that lives on top of your other windows. Drag audio
+files onto him and he eats them, chops each one into 16 slices, and
+auto-arranges them into a looping beat you can remix on a mini step
+sequencer — then export the mix to a `.wav` file.
 
 ## What it does
 
 - Sits on your desktop as a small, transparent, always-on-top, frameless
   window (drag him around by clicking his body or the panel header).
-- Drop a `.wav`, `.mp3`, `.ogg`, `.flac`, `.aiff`, or `.m4a` file on him and
-  he plays a chomping eating animation while the sample is decoded.
-- The sample is sliced into 16 equal chunks. Each chunk's loudness is
-  analyzed and used to auto-build a step pattern (louder/percussive slices
-  are more likely to be turned on), which then loops as a beat.
+- Drop one or several `.wav`, `.mp3`, `.ogg`, `.flac`, `.aiff`, or `.m4a`
+  files on him at once — each becomes its own "layer" (up to 6 at a time)
+  with its own row in the step grid, and he plays a chomping eating
+  animation scaled to how many you dropped while they decode. Drop more in
+  later and they layer straight into whatever's already looping.
+- Each sample is sliced into 16 equal chunks. Each chunk's loudness is
+  analyzed and used to auto-build that layer's step pattern (louder/
+  percussive slices are more likely to be turned on), and all layers mix
+  together as they loop.
 - While the beat is playing he sings along: his mouth cycles through a
   few different open shapes (rounded "oh", tall "ah", wide "ee") in sync
   with each active step instead of just chomping, his eyebrows lift, his
   body sways side to side and picks up a soft glow on the beat, and he
   occasionally pops out a little floating music note.
-- A small collapsible panel lets you: toggle individual steps on/off,
-  re-shuffle the auto-generated pattern, change the tempo (60–180 BPM),
-  and play/stop the loop.
+- A small collapsible panel lets you: toggle individual steps per layer
+  on/off, click a layer's number label to remove that sound, re-shuffle
+  every layer's pattern at once, change the tempo (60–180 BPM), and
+  play/stop the loop.
+- **Export**: pick how many loops you want (1–32) and hit the export
+  (⬇) button — it renders the current mix offline and opens a native
+  "Save As" dialog so you can save it as a `.wav` file anywhere on your
+  PC, ready to drop into another DAW or just keep.
 - Right-click him for a small menu: toggle click-through (so he stops
   intercepting mouse clicks meant for windows behind him), reset his
   position to the bottom-right corner, or quit.
@@ -123,12 +133,14 @@ works before you tag a real version.
 
 ```
 main.js       Electron main process — creates the transparent window,
-              the right-click context menu.
+              the right-click context menu, and the native "Save As"
+              dialog used for exporting a mix.
 preload.js    Small, safe bridge exposed to the renderer (contextIsolation
               is on, nodeIntegration is off).
 index.html    Window contents: the turtle's canvas + the sequencer panel.
-renderer.js   Everything else: turtle drawing/animation, drag & drop,
-              Web Audio decoding/slicing, the step scheduler.
+renderer.js   Everything else: turtle drawing/animation, multi-file drag
+              & drop, Web Audio decoding/slicing per layer, the step
+              scheduler, and WAV export/rendering.
 style.css     Look & feel — matches the green palette from the reference
               art, dark rounded panel, pixelated canvas scaling.
 assets/       App icon (icon.ico / icon.png) used for the Windows build.
@@ -151,6 +163,13 @@ assets/       App icon (icon.ico / icon.png) used for the Windows build.
 - **Auto-pattern behavior**: see `generatePattern()` in `renderer.js` —
   it ranks slices by RMS loudness and turns on the top N (6–10, randomized)
   plus the downbeat.
+- **Max simultaneous sounds**: `MAX_LAYERS` at the top of the "Audio
+  engine" section in `renderer.js` (default 6). Each layer gets its own
+  row in the step grid, so raising this a lot may need `#steps`'s
+  `max-height` in `style.css` adjusted too.
+- **Export length**: the loop-count field is capped at 1–32 in
+  `index.html` (`#loopsInput`); the actual rendering happens in
+  `exportMix()` in `renderer.js` via an `OfflineAudioContext`.
 - **Singing behavior**: `triggerMouthPulse()` fires on every active step —
   it sets `turtle.singPulse` (drives the brow raise, sway, and glow),
   picks a new `mouthShape` (`'O' | 'A' | 'E'`, see `drawMouth()`), and has
@@ -164,6 +183,8 @@ assets/       App icon (icon.ico / icon.png) used for the Windows build.
 
 - Audio decoding and playback use the standard Web Audio API in the
   renderer — no native audio dependencies to compile.
+- Exported files are uncompressed 16-bit PCM `.wav` (encoded by hand in
+  `audioBufferToWav()` — no extra audio library needed).
 - The window is transparent and frameless, so on Windows you may see a
   faint shadow depending on your display scaling; `hasShadow: false` is
   already set to minimize that.

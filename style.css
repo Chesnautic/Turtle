@@ -70,7 +70,7 @@ html, body {
 }
 
 #panel {
-  width: 216px;
+  width: 240px;
   margin-top: -10px;
   background: rgba(23, 46, 28, 0.92);
   border: 2px solid #eef5ea;
@@ -111,7 +111,7 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 220px;
+  max-height: 320px;
   transition: max-height 0.2s ease, padding 0.2s ease, opacity 0.2s ease;
   opacity: 1;
 }
@@ -124,9 +124,53 @@ html, body {
 }
 
 #steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 170px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.layerRow {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.layerLabel {
+  flex: 0 0 auto;
+  width: 18px;
+  background: rgba(238, 245, 234, 0.14);
+  border: 1px solid rgba(238, 245, 234, 0.35);
+  border-radius: 3px;
+  color: #eef5ea;
+  font-size: 9px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.layerLabel:hover {
+  background: rgba(224, 110, 110, 0.4);
+  border-color: #e6a3a3;
+}
+
+.layerLabel.empty {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.layerLabel.empty:hover {
+  background: rgba(238, 245, 234, 0.14);
+  border-color: rgba(238, 245, 234, 0.35);
+}
+
+.layerSteps {
+  flex: 1;
   display: grid;
   grid-template-columns: repeat(16, 1fr);
-  gap: 3px;
+  gap: 2px;
 }
 
 .step {
@@ -184,6 +228,7 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
 #bpmLabel {
@@ -194,6 +239,25 @@ html, body {
 #tempo {
   width: 100%;
   accent-color: #8fd6a6;
+}
+
+.exportRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  opacity: 0.85;
+}
+
+#loopsInput {
+  width: 40px;
+  background: rgba(238, 245, 234, 0.12);
+  border: 1px solid #eef5ea;
+  color: #eef5ea;
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-family: inherit;
+  font-size: 10px;
 }
 
 #status {

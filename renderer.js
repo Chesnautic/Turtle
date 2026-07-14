@@ -17,6 +17,8 @@ const panelToggle = document.getElementById('panelToggle');
 const stepsEl = document.getElementById('steps');
 const playBtn = document.getElementById('playBtn');
 const shuffleBtn = document.getElementById('shuffleBtn');
+const exportBtn = document.getElementById('exportBtn');
+const loopsInput = document.getElementById('loopsInput');
 const tempoEl = document.getElementById('tempo');
 const bpmLabel = document.getElementById('bpmLabel');
 const statusEl = document.getElementById('status');
@@ -160,12 +162,12 @@ function drawNotes() {
   });
 }
 
-function startEating() {
+function startEating(count = 1) {
   turtle.mode = 'eating';
   turtle.eating = {
     start: performance.now(),
-    chomps: 5 + Math.floor(Math.random() * 2),
-    chompDur: 190,
+    chomps: Math.min(4 + count * 2, 12),
+    chompDur: count > 1 ? 160 : 190,
   };
 }
 
@@ -364,10 +366,13 @@ panelToggle.addEventListener('click', () => {
 // Audio engine
 // ---------------------------------------------------------------------------
 let audioCtx = null;
-let decodedBuffer = null;
-let sliceDuration = 0;
-let pattern = new Array(STEP_COUNT).fill(false);
-let sliceEnergy = new Array(STEP_COUNT).fill(0);
+
+// Each dropped sound becomes its own "layer": its own 16-slice buffer,
+// energy profile, and independently editable step pattern. They all mix
+// together during playback and export.
+const MAX_LAYERS = 6;
+let layers = []; // { id, name, buffer, sliceDuration, pattern, energy }
+let layerIdCounter = 0;
 
 let playing = false;
 let bpm = 120;
@@ -399,25 +404,29 @@ function scheduler() {
 }
 
 function scheduleStep(stepIdx, time) {
-  const active = pattern[stepIdx];
-  visualQueue.push({ time, active, stepIdx });
-
-  if (!active || !decodedBuffer) return;
-
   const ctxAudio = getAudioCtx();
-  const src = ctxAudio.createBufferSource();
-  src.buffer = decodedBuffer;
+  let anyActive = false;
 
-  const gain = ctxAudio.createGain();
-  const fade = Math.min(0.006, sliceDuration * 0.2);
-  gain.gain.setValueAtTime(0, time);
-  gain.gain.linearRampToValueAtTime(1, time + fade);
-  gain.gain.setValueAtTime(1, Math.max(time, time + sliceDuration - fade));
-  gain.gain.linearRampToValueAtTime(0, time + sliceDuration);
+  layers.forEach((layer) => {
+    if (!layer.pattern[stepIdx]) return;
+    anyActive = true;
 
-  src.connect(gain).connect(ctxAudio.destination);
-  const offset = stepIdx * sliceDuration;
-  src.start(time, offset, sliceDuration);
+    const src = ctxAudio.createBufferSource();
+    src.buffer = layer.buffer;
+
+    const gain = ctxAudio.createGain();
+    const fade = Math.min(0.006, layer.sliceDuration * 0.2);
+    gain.gain.setValueAtTime(0, time);
+    gain.gain.linearRampToValueAtTime(1, time + fade);
+    gain.gain.setValueAtTime(1, Math.max(time, time + layer.sliceDuration - fade));
+    gain.gain.linearRampToValueAtTime(0, time + layer.sliceDuration);
+
+    src.connect(gain).connect(ctxAudio.destination);
+    const offset = stepIdx * layer.sliceDuration;
+    src.start(time, offset, layer.sliceDuration);
+  });
+
+  visualQueue.push({ time, active: anyActive, stepIdx });
 }
 
 function checkScheduledVisuals(nowSeconds) {
@@ -430,14 +439,13 @@ function checkScheduledVisuals(nowSeconds) {
 }
 
 function highlightStep(idx) {
-  const nodes = stepsEl.children;
-  for (let i = 0; i < nodes.length; i++) {
-    nodes[i].classList.toggle('playhead', i === idx);
-  }
+  stepsEl.querySelectorAll('.step').forEach((el) => {
+    el.classList.toggle('playhead', Number(el.dataset.step) === idx);
+  });
 }
 
 function startPlayback() {
-  if (!decodedBuffer) return;
+  if (!layers.length) return;
   const ctxAudio = getAudioCtx();
   if (ctxAudio.state === 'suspended') ctxAudio.resume();
   playing = true;
@@ -470,27 +478,68 @@ tempoEl.addEventListener('input', () => {
 });
 
 shuffleBtn.addEventListener('click', () => {
-  if (!decodedBuffer) return;
-  pattern = generatePattern(sliceEnergy, true);
+  if (!layers.length) return;
+  layers.forEach((layer) => {
+    layer.pattern = generatePattern(layer.energy, true);
+  });
   renderSteps();
 });
 
 // ---------------------------------------------------------------------------
-// Step grid UI
+// Step grid UI — one row per loaded sound ("layer"). Click a row's number
+// label to remove that layer; click a cell to toggle that layer's step.
 // ---------------------------------------------------------------------------
 function renderSteps() {
   stepsEl.innerHTML = '';
-  for (let i = 0; i < STEP_COUNT; i++) {
-    const el = document.createElement('div');
-    el.className = 'step' + (pattern[i] ? ' on' : '');
-    if (!decodedBuffer) el.classList.add('empty');
-    el.addEventListener('click', () => {
-      if (!decodedBuffer) return;
-      pattern[i] = !pattern[i];
-      el.classList.toggle('on', pattern[i]);
-    });
-    stepsEl.appendChild(el);
+
+  if (!layers.length) {
+    stepsEl.appendChild(buildStepRow(null));
+    return;
   }
+
+  layers.forEach((layer, layerIdx) => {
+    stepsEl.appendChild(buildStepRow(layer, layerIdx));
+  });
+}
+
+function buildStepRow(layer, layerIdx) {
+  const rowWrap = document.createElement('div');
+  rowWrap.className = 'layerRow';
+
+  const label = document.createElement('button');
+  label.className = 'layerLabel' + (layer ? '' : ' empty');
+  label.type = 'button';
+  label.textContent = layer ? String(layerIdx + 1) : '–';
+  if (layer) {
+    label.title = `${layer.name} — click to remove`;
+    label.addEventListener('click', () => {
+      layers = layers.filter((l) => l.id !== layer.id);
+      renderSteps();
+    });
+  } else {
+    label.disabled = true;
+  }
+  rowWrap.appendChild(label);
+
+  const row = document.createElement('div');
+  row.className = 'layerSteps';
+  for (let i = 0; i < STEP_COUNT; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'step' + (layer && layer.pattern[i] ? ' on' : '');
+    cell.dataset.step = i;
+    if (!layer) {
+      cell.classList.add('empty');
+    } else {
+      cell.addEventListener('click', () => {
+        layer.pattern[i] = !layer.pattern[i];
+        cell.classList.toggle('on', layer.pattern[i]);
+      });
+    }
+    row.appendChild(cell);
+  }
+  rowWrap.appendChild(row);
+
+  return rowWrap;
 }
 renderSteps();
 
@@ -552,47 +601,187 @@ window.addEventListener('dragleave', (e) => {
   }
 });
 
+function isAudioFile(file) {
+  return file.type.startsWith('audio/') || /\.(wav|mp3|ogg|flac|aiff|m4a)$/i.test(file.name);
+}
+
 window.addEventListener('drop', async (e) => {
   e.preventDefault();
   dragCounter = 0;
   dropOverlay.classList.remove('active');
 
-  const file = e.dataTransfer.files && e.dataTransfer.files[0];
-  if (!file) return;
+  const incoming = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
+  const audioFiles = incoming.filter(isAudioFile);
 
-  if (!file.type.startsWith('audio/') && !/\.(wav|mp3|ogg|flac|aiff|m4a)$/i.test(file.name)) {
-    statusEl.textContent = `"${file.name}" doesn't look like audio`;
-    dropHint.textContent = 'drop a sound on me';
+  if (!audioFiles.length) {
+    if (incoming.length) statusEl.textContent = "that doesn't look like audio";
     return;
   }
 
+  const room = MAX_LAYERS - layers.length;
+  if (room <= 0) {
+    statusEl.textContent = `already full (${MAX_LAYERS} sounds max) — remove one first`;
+    return;
+  }
+
+  const accepted = audioFiles.slice(0, room);
+  const overflow = audioFiles.length - accepted.length;
+
   dropHint.classList.add('hidden');
-  statusEl.textContent = `eating ${file.name}...`;
-  startEating();
+  statusEl.textContent =
+    accepted.length === 1 ? `eating ${accepted[0].name}...` : `eating ${accepted.length} sounds...`;
+  startEating(accepted.length);
+
+  const ctxAudio = getAudioCtx();
+  const results = await Promise.allSettled(
+    accepted.map(async (file) => {
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = await ctxAudio.decodeAudioData(arrayBuffer.slice(0));
+      const energy = computeSliceEnergy(buffer);
+      return {
+        id: layerIdCounter++,
+        name: file.name,
+        buffer,
+        sliceDuration: buffer.duration / STEP_COUNT,
+        energy,
+        pattern: generatePattern(energy, false),
+      };
+    })
+  );
+
+  const added = [];
+  const failedNames = [];
+  results.forEach((r, idx) => {
+    if (r.status === 'fulfilled') added.push(r.value);
+    else failedNames.push(accepted[idx].name);
+  });
+
+  layers.push(...added);
+  renderSteps();
+
+  let msg = added.length
+    ? `added ${added.length} sound${added.length > 1 ? 's' : ''} (${layers.length}/${MAX_LAYERS})`
+    : 'could not read that file';
+  if (overflow > 0) msg += ` — ${overflow} skipped, max ${MAX_LAYERS} reached`;
+  if (failedNames.length) msg += ` — failed: ${failedNames.join(', ')}`;
+  statusEl.textContent = msg;
+
+  // let the chomp animation play out, then auto-start the beat (only if it
+  // wasn't already playing — dropping more sounds mid-loop just layers in)
+  setTimeout(() => {
+    dropHint.classList.remove('hidden');
+    dropHint.textContent = 'drop a sound on me';
+    if (!playing && layers.length) startPlayback();
+  }, 900 + accepted.length * 120);
+});
+
+// ---------------------------------------------------------------------------
+// Export — offline-renders the current multi-layer pattern for N loops and
+// writes it out as a 16-bit PCM .wav via a native Save dialog (main process).
+// ---------------------------------------------------------------------------
+function audioBufferToWav(buffer) {
+  const numChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const bitDepth = 16;
+  const bytesPerSample = bitDepth / 8;
+  const blockAlign = numChannels * bytesPerSample;
+  const numFrames = buffer.length;
+  const dataSize = numFrames * blockAlign;
+
+  const arrBuf = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(arrBuf);
+
+  const writeStr = (offset, str) => {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+  };
+
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + dataSize, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * blockAlign, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitDepth, true);
+  writeStr(36, 'data');
+  view.setUint32(40, dataSize, true);
+
+  const channelData = [];
+  for (let ch = 0; ch < numChannels; ch++) channelData.push(buffer.getChannelData(ch));
+
+  let offset = 44;
+  for (let i = 0; i < numFrames; i++) {
+    for (let ch = 0; ch < numChannels; ch++) {
+      let sample = Math.max(-1, Math.min(1, channelData[ch][i]));
+      sample = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
+      view.setInt16(offset, sample, true);
+      offset += 2;
+    }
+  }
+
+  return arrBuf;
+}
+
+async function exportMix() {
+  if (!layers.length) {
+    statusEl.textContent = 'nothing to export yet — drop a sound first';
+    return;
+  }
+
+  const loops = Math.max(1, Math.min(32, parseInt(loopsInput.value, 10) || 4));
+  const prevStatus = statusEl.textContent;
+  exportBtn.disabled = true;
+  statusEl.textContent = `rendering ${loops} loop${loops > 1 ? 's' : ''}...`;
 
   try {
-    const arrayBuffer = await file.arrayBuffer();
-    const ctxAudio = getAudioCtx();
-    const buffer = await ctxAudio.decodeAudioData(arrayBuffer.slice(0));
+    const sampleRate = getAudioCtx().sampleRate;
+    const interval = stepInterval();
+    const totalSeconds = loops * STEP_COUNT * interval + 0.5; // tail room for the last slice
+    const offlineCtx = new OfflineAudioContext(2, Math.ceil(totalSeconds * sampleRate), sampleRate);
 
-    stopPlayback();
-    decodedBuffer = buffer;
-    sliceDuration = buffer.duration / STEP_COUNT;
-    sliceEnergy = computeSliceEnergy(buffer);
-    pattern = generatePattern(sliceEnergy, false);
-    renderSteps();
+    for (let r = 0; r < loops; r++) {
+      for (let s = 0; s < STEP_COUNT; s++) {
+        const time = r * STEP_COUNT * interval + s * interval;
+        layers.forEach((layer) => {
+          if (!layer.pattern[s]) return;
+          const src = offlineCtx.createBufferSource();
+          src.buffer = layer.buffer;
 
-    statusEl.textContent = `${file.name} — ${buffer.duration.toFixed(2)}s, chopped x${STEP_COUNT}`;
+          const gain = offlineCtx.createGain();
+          const fade = Math.min(0.006, layer.sliceDuration * 0.2);
+          gain.gain.setValueAtTime(0, time);
+          gain.gain.linearRampToValueAtTime(1, time + fade);
+          gain.gain.setValueAtTime(1, Math.max(time, time + layer.sliceDuration - fade));
+          gain.gain.linearRampToValueAtTime(0, time + layer.sliceDuration);
 
-    // let the chomp animation play out, then auto-start the beat
-    setTimeout(() => {
-      dropHint.classList.remove('hidden');
-      dropHint.textContent = 'drop a sound on me';
-      startPlayback();
-    }, 1100);
+          src.connect(gain).connect(offlineCtx.destination);
+          src.start(time, s * layer.sliceDuration, layer.sliceDuration);
+        });
+      }
+    }
+
+    const rendered = await offlineCtx.startRendering();
+    const wavBuffer = audioBufferToWav(rendered);
+    const suggestedName = `turtle-mix-${Date.now()}.wav`;
+    const result = await window.turtleAPI.exportWav(wavBuffer, suggestedName);
+
+    if (result && result.success) {
+      const fileName = result.filePath.split(/[\\/]/).pop();
+      statusEl.textContent = `saved ${fileName}`;
+    } else if (result && result.canceled) {
+      statusEl.textContent = prevStatus;
+    } else {
+      statusEl.textContent = 'export failed';
+    }
   } catch (err) {
-    statusEl.textContent = 'could not read that file';
-    dropHint.classList.remove('hidden');
     console.error(err);
+    statusEl.textContent = 'export failed';
+  } finally {
+    exportBtn.disabled = false;
   }
-});
+}
+
+exportBtn.addEventListener('click', exportMix);

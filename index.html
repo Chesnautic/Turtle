@@ -25,10 +25,17 @@
         <div class="controlsRow">
           <button id="playBtn" class="iconBtn" title="Play / stop">▶</button>
           <button id="shuffleBtn" class="iconBtn" title="Re-shuffle pattern">⟲</button>
+          <button id="exportBtn" class="iconBtn" title="Export mix to a .wav file">⬇</button>
           <div class="tempoWrap">
             <span id="bpmLabel">120 BPM</span>
             <input id="tempo" type="range" min="60" max="180" value="120" />
           </div>
+        </div>
+
+        <div class="exportRow">
+          <label for="loopsInput">export length</label>
+          <input id="loopsInput" type="number" min="1" max="32" value="4" />
+          <span>loops</span>
         </div>
 
         <div id="status">no sample loaded yet</div>
