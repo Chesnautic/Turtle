@@ -1,0 +1,43 @@
+{
+  "name": "turtle",
+  "productName": "Turtle",
+  "version": "1.3.0",
+  "description": "Three pond turtles that eat your audio samples and turn them into a beat, a tempo-matched sample track, and a resynthesized bassline, then export the mix.",
+  "main": "main.js",
+  "author": "You",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win nsis --publish=never"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.example.turtle",
+    "productName": "Turtle",
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "renderer.js",
+      "style.css",
+      "assets/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Turtle"
+    }
+  }
+}
