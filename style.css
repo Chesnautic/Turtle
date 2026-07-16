@@ -1,0 +1,513 @@
+* {
+  box-sizing: border-box;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: #12222a;
+  overflow: hidden;
+  font-family: 'Courier New', Consolas, monospace;
+  color: #eef5ea;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- custom titlebar (window is frameless but resizable now) ---- */
+
+#titleBar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 34px;
+  padding: 0 6px 0 12px;
+  background: #0d1a20;
+  -webkit-app-region: drag;
+  border-bottom: 1px solid rgba(238, 245, 234, 0.08);
+}
+
+#titleBar .title {
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  opacity: 0.9;
+}
+
+.winBtns {
+  display: flex;
+  gap: 2px;
+  -webkit-app-region: no-drag;
+}
+
+.winBtn {
+  width: 32px;
+  height: 26px;
+  background: transparent;
+  border: none;
+  color: #eef5ea;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  opacity: 0.75;
+}
+
+.winBtn:hover {
+  background: rgba(238, 245, 234, 0.12);
+  opacity: 1;
+}
+
+.winBtn.close:hover {
+  background: #c65b4a;
+  opacity: 1;
+}
+
+/* ---- the pond ---- */
+
+#pond {
+  flex: 0 0 auto;
+  position: relative;
+  min-height: 240px;
+  height: 34vh;
+  max-height: 320px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 30% 10%, rgba(255, 255, 255, 0.08), transparent 45%),
+    linear-gradient(180deg, #2c7a8c 0%, #1c5a6e 45%, #144a5c 100%);
+  border-bottom: 3px solid #0d1a20;
+}
+
+.lilyPad {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #4d9a5c, #2f6e3d 70%);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  opacity: 0.9;
+}
+.lilyPad::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 34%;
+  height: 3px;
+  background: #144a5c;
+  transform: translate(-50%, -50%) rotate(-20deg);
+}
+.lp1 { width: 52px; height: 30px; left: 4%; top: 12%; }
+.lp2 { width: 34px; height: 20px; left: 14%; top: 62%; }
+.lp3 { width: 40px; height: 23px; right: 6%; top: 18%; }
+.lp4 { width: 26px; height: 15px; right: 16%; top: 68%; }
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  border: 1.5px solid rgba(238, 245, 234, 0.28);
+  pointer-events: none;
+}
+.rp1 { width: 90px; height: 40px; left: 30%; bottom: 8%; }
+.rp2 { width: 60px; height: 26px; right: 26%; bottom: 14%; }
+.rp3 { width: 120px; height: 50px; left: 50%; top: 6%; transform: translateX(-50%); opacity: 0.6; }
+
+.reeds {
+  position: absolute;
+  bottom: 0;
+  width: 10px;
+  height: 46px;
+  pointer-events: none;
+}
+.reeds::before, .reeds::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  width: 4px;
+  height: 100%;
+  background: #3a7a4a;
+  border-radius: 3px 3px 0 0;
+}
+.reeds::before { left: 0; transform: rotate(-6deg); }
+.reeds::after { left: 8px; height: 70%; transform: rotate(8deg); }
+.rd1 { left: 2%; }
+.rd2 { right: 3%; }
+
+#turtleRow {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  padding: 0 4%;
+}
+
+.stageWrap {
+  position: relative;
+  width: 170px;
+  height: 170px;
+  max-width: 26%;
+  aspect-ratio: 1 / 1;
+}
+
+.stage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.35));
+}
+
+.dropHint {
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: #eef5ea;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+  pointer-events: none;
+  opacity: 0.9;
+  transition: opacity 0.3s ease;
+}
+
+.dropHint.hidden {
+  opacity: 0;
+}
+
+.dropOverlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow: 0 0 0 0 rgba(238, 245, 234, 0);
+  transition: box-shadow 0.15s ease;
+}
+
+.dropOverlay.active {
+  box-shadow: 0 0 0 8px rgba(238, 245, 234, 0.55);
+}
+
+/* ---- track panels (always visible, no tabs) ---- */
+
+#tracks {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 12px 16px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  background: #17272e;
+}
+
+.trackPanel {
+  background: rgba(238, 245, 234, 0.04);
+  border: 1px solid rgba(238, 245, 234, 0.14);
+  border-radius: 10px;
+  padding: 8px 10px 10px;
+  flex: 0 0 auto;
+}
+
+.trackHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.trackDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.trackGreen .trackDot { background: #8fd6a6; }
+.trackBlue .trackDot { background: #7fc1ea; }
+.trackRed .trackDot { background: #e5897a; }
+
+.trackName {
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 2px;
+}
+
+.trackGreen .trackName { color: #8fd6a6; }
+.trackBlue .trackName { color: #7fc1ea; }
+.trackRed .trackName { color: #e5897a; }
+
+.trackHint {
+  font-size: 9px;
+  opacity: 0.55;
+}
+
+.emptyMsg {
+  opacity: 0.45;
+  font-size: 9px;
+  padding: 6px 2px;
+}
+
+/* ---- Green, Blue, Red all share the same segmented "bar" widget: one
+   horizontal 16-segment bar per dropped sound. `.step` only carries
+   cursor/playhead/empty concerns now — all sizing lives on `.seg` so it
+   can never inherit a stray aspect-ratio from anywhere else. ---- */
+
+.step {
+  cursor: pointer;
+}
+
+.step.playhead {
+  outline: 2px solid #ffd27a;
+  outline-offset: -1px;
+}
+
+.step.empty {
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+.segTracks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.segTrackRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.segTrackMeta {
+  flex: 0 0 auto;
+  width: 108px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 8px;
+  opacity: 0.8;
+}
+
+.segTrackMeta .segName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 92px;
+}
+
+.segTrackMeta .segRemove {
+  align-self: flex-start;
+  background: transparent;
+  border: none;
+  color: #eef5ea;
+  cursor: pointer;
+  font-size: 9px;
+  opacity: 0.65;
+  padding: 0;
+}
+
+.segTrackMeta .segRemove:hover {
+  opacity: 1;
+  color: #e6a3a3;
+}
+
+.segBar {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  height: 34px;
+  background: rgba(238, 245, 234, 0.05);
+  border: 1px solid rgba(238, 245, 234, 0.15);
+  border-radius: 5px;
+  padding: 3px 4px;
+}
+
+.seg {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  border-radius: 3px;
+  cursor: pointer;
+  background: rgba(238, 245, 234, 0.16);
+  border: 1px solid rgba(238, 245, 234, 0.22);
+  transition: background 0.1s ease, opacity 0.1s ease;
+}
+
+.seg:hover {
+  border-color: rgba(238, 245, 234, 0.5);
+}
+
+.trackGreen .seg.on {
+  background: #8fd6a6;
+  border-color: #eef5ea;
+  box-shadow: 0 0 6px rgba(143, 214, 166, 0.5);
+}
+.trackBlue .seg.on {
+  background: #7fc1ea;
+  border-color: #eef5ea;
+  box-shadow: 0 0 6px rgba(127, 193, 234, 0.5);
+}
+.trackRed .seg.on {
+  background: #e5897a;
+  border-color: #eef5ea;
+  box-shadow: 0 0 6px rgba(229, 137, 122, 0.5);
+}
+
+.seg.off {
+  opacity: 0.4;
+}
+
+/* ---- Blue's playlist (order + bpm badges, sits above its bars) ---- */
+
+.playlist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.playlistEmpty {
+  font-size: 9px;
+  opacity: 0.5;
+  padding: 4px 0;
+}
+
+.playlistItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  line-height: 16px;
+  opacity: 0.85;
+}
+
+.playlistItem .order {
+  flex: 0 0 auto;
+  opacity: 0.7;
+  width: 14px;
+}
+
+.playlistItem .name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.playlistItem .bpmBadge {
+  flex: 0 0 auto;
+  background: rgba(127, 193, 234, 0.2);
+  border: 1px solid #7fc1ea;
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 8px;
+}
+
+.playlistItem .removeBtn {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  color: #eef5ea;
+  cursor: pointer;
+  font-size: 11px;
+  opacity: 0.7;
+  padding: 0 2px;
+}
+
+.playlistItem .removeBtn:hover {
+  opacity: 1;
+  color: #e6a3a3;
+}
+
+/* ---- shared transport (bottom bar) ---- */
+
+.controlsRow {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: #0d1a20;
+  border-top: 1px solid rgba(238, 245, 234, 0.08);
+}
+
+.iconBtn {
+  background: rgba(238, 245, 234, 0.12);
+  border: 1px solid #eef5ea;
+  color: #eef5ea;
+  border-radius: 6px;
+  width: 32px;
+  height: 28px;
+  font-size: 13px;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.iconBtn:hover {
+  background: rgba(238, 245, 234, 0.22);
+}
+
+.iconBtn.active {
+  background: #8fd6a6;
+  color: #17331d;
+}
+
+.tempoWrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+#bpmLabel {
+  font-size: 9px;
+  opacity: 0.8;
+}
+
+#tempo {
+  width: 100%;
+  accent-color: #8fd6a6;
+}
+
+.exportRow {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  opacity: 0.85;
+}
+
+#loopsInput {
+  width: 40px;
+  background: rgba(238, 245, 234, 0.12);
+  border: 1px solid #eef5ea;
+  color: #eef5ea;
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-family: inherit;
+  font-size: 10px;
+}
+
+#status {
+  flex: 0 0 auto;
+  font-size: 9px;
+  opacity: 0.7;
+  text-align: center;
+  padding: 4px 8px 8px;
+  background: #0d1a20;
+  min-height: 12px;
+}

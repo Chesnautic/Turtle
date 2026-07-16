@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Turtle</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <div id="titleBar">
+      <span class="title">🐢 TURTLE</span>
+      <div class="winBtns">
+        <button id="winMin" class="winBtn" title="Minimize">–</button>
+        <button id="winMax" class="winBtn" title="Maximize / restore">▢</button>
+        <button id="winClose" class="winBtn close" title="Close">✕</button>
+      </div>
+    </div>
+
+    <div id="pond">
+      <div class="lilyPad lp1"></div>
+      <div class="lilyPad lp2"></div>
+      <div class="lilyPad lp3"></div>
+      <div class="lilyPad lp4"></div>
+      <div class="ripple rp1"></div>
+      <div class="ripple rp2"></div>
+      <div class="ripple rp3"></div>
+      <div class="reeds rd1"></div>
+      <div class="reeds rd2"></div>
+
+      <div id="turtleRow">
+        <div class="stageWrap" id="stageWrapGreen">
+          <canvas class="stage" id="stageGreen" width="170" height="170"></canvas>
+          <div class="dropHint" id="dropHintGreen">chop me a beat</div>
+          <div class="dropOverlay" id="dropOverlayGreen"></div>
+        </div>
+        <div class="stageWrap" id="stageWrapBlue">
+          <canvas class="stage" id="stageBlue" width="170" height="170"></canvas>
+          <div class="dropHint" id="dropHintBlue">play me whole</div>
+          <div class="dropOverlay" id="dropOverlayBlue"></div>
+        </div>
+        <div class="stageWrap" id="stageWrapRed">
+          <canvas class="stage" id="stageRed" width="170" height="170"></canvas>
+          <div class="dropHint" id="dropHintRed">feed me bass</div>
+          <div class="dropOverlay" id="dropOverlayRed"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tracks">
+      <section class="trackPanel trackGreen">
+        <div class="trackHeader">
+          <span class="trackDot"></span>
+          <span class="trackName">GREEN</span>
+          <span class="trackHint">chopped &amp; sequenced — click a segment to toggle it</span>
+        </div>
+        <div id="stepsGreen" class="segTracks"></div>
+      </section>
+
+      <section class="trackPanel trackBlue">
+        <div class="trackHeader">
+          <span class="trackDot"></span>
+          <span class="trackName">BLUE</span>
+          <span class="trackHint">whole samples, tempo-matched — click a segment to mute a piece of it</span>
+        </div>
+        <div id="playlistBlue" class="playlist"></div>
+        <div id="barsBlue" class="segTracks"></div>
+      </section>
+
+      <section class="trackPanel trackRed">
+        <div class="trackHeader">
+          <span class="trackDot"></span>
+          <span class="trackName">RED</span>
+          <span class="trackHint">chomped into sub-bass — click a segment to mute a piece of it</span>
+        </div>
+        <div id="barsRed" class="segTracks"></div>
+      </section>
+    </div>
+
+    <div class="controlsRow">
+      <button id="playBtn" class="iconBtn" title="Play / stop everything">▶</button>
+      <button id="shuffleBtn" class="iconBtn" title="Re-shuffle Green &amp; Red's patterns">⟲</button>
+      <button id="exportBtn" class="iconBtn" title="Export the full mix to a .wav file">⬇</button>
+      <div class="tempoWrap">
+        <span id="bpmLabel">120 BPM</span>
+        <input id="tempo" type="range" min="60" max="180" value="120" />
+      </div>
+      <div class="exportRow">
+        <label for="loopsInput">loops</label>
+        <input id="loopsInput" type="number" min="1" max="32" value="4" />
+      </div>
+    </div>
+
+    <div id="status">drop sounds on green, blue, or red to get started</div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
